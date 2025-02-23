@@ -1,16 +1,16 @@
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import dotenv from "dotenv";
-import fs from "fs";
 
 dotenv.config();
 
-const credsFilePath = "./creds.json";
+if (!process.env.FIREBASE_CONFIG_JSON) {
+  throw new Error("FIREBASE_CONFIG_JSON is not set in the .env file.");
+}
 
-// Write the environment variable value to a JSON file
-fs.writeFileSync(credsFilePath, process.env.FIREBASE_CONFIG_JSON);
-
-const serviceAccount = JSON.parse(fs.readFileSync(credsFilePath, "utf8"));
+// Parse and fix newlines in the private key
+const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG_JSON);
+serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
 
 initializeApp({
   credential: cert(serviceAccount),

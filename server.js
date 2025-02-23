@@ -13,6 +13,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8383;
 
+app.set('trust proxy', 1);
 app.use(express.json());
 
 

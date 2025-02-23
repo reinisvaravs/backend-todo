@@ -18,7 +18,7 @@ app.use(express.json());
 
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://friends-react.onrender.com'], // Replace with your frontend's actual domain
+  origin: ['http://localhost:3000', 'https://friends-react.onrender.com', 'https://reinisvaravs.com'], // Replace with your frontend's actual domain
   methods: 'GET,POST,PATCH,DELETE',
   allowedHeaders: 'Content-Type,Authorization'
 }));

@@ -4,6 +4,8 @@ import { fileURLToPath } from "url";
 import db from "./firebase.js";
 import { FieldValue } from "firebase-admin/firestore";
 import rateLimit from "express-rate-limit";
+import cors from "cors";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +14,13 @@ const app = express();
 const port = process.env.PORT || 8383;
 
 app.use(express.json());
+
+
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://reinisvaravs.com'], // Replace with your frontend's actual domain
+  methods: 'GET,POST,PATCH,DELETE',
+  allowedHeaders: 'Content-Type,Authorization'
+}));
 
 
 const limiter = rateLimit({

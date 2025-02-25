@@ -6,23 +6,26 @@ import { FieldValue } from "firebase-admin/firestore";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
 
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 8383;
 
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 app.use(express.json());
 
-
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://friends-react.onrender.com', 'https://reinisvaravs.com'], // Replace with your frontend's actual domain
-  methods: 'GET,POST,PATCH,DELETE',
-  allowedHeaders: 'Content-Type,Authorization'
-}));
-
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://friends-react.onrender.com",
+      "https://reinisvaravs.com",
+    ], // Replace with your frontend's actual domain
+    methods: "GET,POST,PATCH,DELETE",
+    allowedHeaders: "Content-Type,Authorization",
+  })
+);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -34,6 +37,14 @@ const limiter = rateLimit({
   headers: true,
 });
 
+const likeLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 30, // 30 likes per minute per user (reasonable for likes)
+  message: { success: false, error: "Too many likes, slow down!" },
+});
+app.patch("/changevalue", likeLimiter);
+
+
 app.use(limiter);
 
 const strictLimiter = rateLimit({
@@ -43,34 +54,29 @@ const strictLimiter = rateLimit({
 });
 
 app.post("/addfriend", strictLimiter);
-app.patch("/changevalue", strictLimiter);
 app.delete("/friends", strictLimiter);
 
-//  Middleware to catch JSON parsing errors
+// Middleware to catch JSON parsing errors
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError) {
-    return res
-      .status(400)
-      .json({ success: false, error: "Invalid JSON format" });
+    return res.status(400).json({ success: false, error: "Invalid JSON format" });
   }
   next();
 });
 
-//  Serve the index page
+// Serve the index page
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-//  GET /friends: Retrieve all friends (No strict limit, just global limit)
+// GET /friends: Retrieve all friends
 app.get("/friends", async (req, res) => {
   try {
     const peopleRef = db.collection("people").doc("associates");
     const doc = await peopleRef.get();
 
     if (!doc.exists || Object.keys(doc.data()).length === 0) {
-      return res
-        .status(404)
-        .json({ success: false, error: "No friends found" });
+      return res.status(404).json({ success: false, error: "No friends found" });
     }
 
     res.status(200).json({
@@ -84,23 +90,17 @@ app.get("/friends", async (req, res) => {
   }
 });
 
-//  POST /addfriend: Add a new friend
+// POST /addfriend: Add a new friend
 app.post("/addfriend", async (req, res) => {
   try {
     if (!req.body || Object.keys(req.body).length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Invalid request: No data received" });
+      return res.status(400).json({ success: false, error: "Invalid request: No data received" });
     }
 
-    const newFriend = req.body;
-    const name = Object.keys(newFriend)[0];
-    const value = newFriend[name];
+    const { name, value, likeCount = 0 } = req.body;
 
-    if (!name || !value) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Both name and value are required" });
+    if (!name || value === undefined) {
+      return res.status(400).json({ success: false, error: "Both name and value are required" });
     }
 
     const peopleRef = db.collection("people").doc("associates");
@@ -112,17 +112,17 @@ app.post("/addfriend", async (req, res) => {
 
     const data = doc.data();
     if (data && data.hasOwnProperty(name)) {
-      return res
-        .status(400)
-        .json({ success: false, error: `The name "${name}" already exists` });
+      return res.status(400).json({ success: false, error: `The name "${name}" already exists` });
     }
 
-    await peopleRef.update({ [name]: value });
+    await peopleRef.update({ 
+      [name]: { value, likeCount } 
+    });
 
     const updatedDoc = await peopleRef.get();
     res.status(201).json({
       success: true,
-      message: `Added "${name}" with value "${value}"`,
+      message: `Added "${name}" with value "${value}" and likeCount "${likeCount}"`,
       data: updatedDoc.data(),
     });
   } catch (error) {
@@ -131,40 +131,38 @@ app.post("/addfriend", async (req, res) => {
   }
 });
 
-//  PATCH /changevalue: Update a friend's value
+// PATCH /changevalue: Update a friend's value or likeCount
 app.patch("/changevalue", async (req, res) => {
-  const { name, newValue } = req.body;
-
-  if (!name || !newValue) {
-    return res.status(400).json({
-      success: false,
-      error: "Both 'name' and 'newValue' are required",
-    });
-  }
-
   try {
+    const { name, newValue, newLikeCount } = req.body;
+
+    if (!name || (newValue === undefined && newLikeCount === undefined)) {
+      return res.status(400).json({
+        success: false,
+        error: "Name and at least one field ('newValue' or 'newLikeCount') are required",
+      });
+    }
+
     const peopleRef = db.collection("people").doc("associates");
     const doc = await peopleRef.get();
 
-    if (!doc.exists) {
-      return res
-        .status(404)
-        .json({ success: false, error: "No data found in the database" });
+    if (!doc.exists || !doc.data()[name]) {
+      return res.status(404).json({ success: false, error: `Person "${name}" not found` });
     }
 
-    const data = doc.data();
-    if (!data || !(name in data)) {
-      return res
-        .status(404)
-        .json({ success: false, error: `Person "${name}" not found` });
-    }
+    const currentData = doc.data()[name];
 
-    await peopleRef.update({ [name]: newValue });
+    const updatedData = {
+      value: newValue !== undefined ? newValue : currentData.value,
+      likeCount: newLikeCount !== undefined ? newLikeCount : currentData.likeCount,
+    };
+
+    await peopleRef.update({ [`${name}`]: updatedData });
 
     res.status(200).json({
       success: true,
-      message: `Updated "${name}" to "${newValue}"`,
-      data: { [name]: newValue },
+      message: `Updated "${name}" successfully`,
+      data: { name, ...updatedData },
     });
   } catch (error) {
     console.error("Error updating value:", error);
@@ -172,30 +170,23 @@ app.patch("/changevalue", async (req, res) => {
   }
 });
 
-//  DELETE /friends: Delete a friend
+// DELETE /friends: Delete a friend
 app.delete("/friends", async (req, res) => {
-  const { name } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ success: false, error: "Name is required" });
-  }
-
   try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ success: false, error: "Name is required" });
+    }
+
     const peopleRef = db.collection("people").doc("associates");
     const doc = await peopleRef.get();
 
-    if (!doc.exists) {
-      return res.status(404).json({ success: false, error: "No data found" });
+    if (!doc.exists || !doc.data()[name]) {
+      return res.status(404).json({ success: false, error: `Person "${name}" not found` });
     }
 
-    const data = doc.data();
-    if (!data || !(name in data)) {
-      return res
-        .status(404)
-        .json({ success: false, error: `Person "${name}" not found` });
-    }
-
-    await peopleRef.update({ [name]: FieldValue.delete() });
+    await peopleRef.update({ [`${name}`]: FieldValue.delete() });
 
     res.status(200).json({
       success: true,
@@ -207,5 +198,5 @@ app.delete("/friends", async (req, res) => {
   }
 });
 
-//  Start server
+// Start server
 app.listen(port, () => console.log(`Server is running on port: ${port}`));

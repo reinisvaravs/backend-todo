@@ -10,7 +10,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const router = express.Router();
 const port = process.env.PORT || 8383;
 
 app.set("trust proxy", 1);
@@ -60,7 +59,7 @@ app.use((err, req, res, next) => {
   next();
 });
 
-router.get("/friends", async (req, res) => {
+app.get("/friends", async (req, res) => {
   try {
     const peopleRef = db.collection("people").doc("associates");
     const doc = await peopleRef.get();
@@ -82,7 +81,7 @@ router.get("/friends", async (req, res) => {
   }
 });
 
-router.post("/addfriend", strictLimiter, async (req, res) => {
+app.post("/addfriend", strictLimiter, async (req, res) => {
   try {
     if (!req.body || Object.keys(req.body).length === 0) {
       return res
@@ -128,7 +127,7 @@ router.post("/addfriend", strictLimiter, async (req, res) => {
   }
 });
 
-router.patch("/changevalue", likeLimiter, async (req, res) => {
+app.patch("/changevalue", likeLimiter, async (req, res) => {
   try {
     const { name, newValue, newLikeCount } = req.body;
 
@@ -170,7 +169,7 @@ router.patch("/changevalue", likeLimiter, async (req, res) => {
   }
 });
 
-router.delete("/friends", strictLimiter, async (req, res) => {
+app.delete("/friends", strictLimiter, async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -201,8 +200,6 @@ router.delete("/friends", strictLimiter, async (req, res) => {
   }
 });
 
-app.use("/app", express.static(path.join(__dirname, "public")));
-
-app.use("/app", router);
+app.use("/", express.static(path.join(__dirname, "public")));
 
 app.listen(port, () => console.log(`Server is running on port: ${port}`));

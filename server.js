@@ -21,6 +21,7 @@ app.use(
       "http://localhost:3000",
       "https://friends-react.onrender.com",
       "https://reinisvaravs.com",
+      "https://reinisvaravs-com.onrender.com",
     ],
     methods: "GET,POST,PATCH,DELETE",
     allowedHeaders: "Content-Type,Authorization",

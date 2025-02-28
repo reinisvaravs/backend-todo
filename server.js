@@ -10,6 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const router = express.Router();
 const port = process.env.PORT || 8383;
 
 app.set("trust proxy", 1);
@@ -21,7 +22,7 @@ app.use(
       "http://localhost:3000",
       "https://friends-react.onrender.com",
       "https://reinisvaravs.com",
-    ], // Replace with your frontend's actual domain
+    ],
     methods: "GET,POST,PATCH,DELETE",
     allowedHeaders: "Content-Type,Authorization",
   })
@@ -32,20 +33,10 @@ const limiter = rateLimit({
   max: 100,
   message: {
     success: false,
-    error: "too many requests, please try again later.",
+    error: "Too many requests, please try again later.",
   },
   headers: true,
 });
-
-const likeLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 30, // 30 likes per minute per user (reasonable for likes)
-  message: { success: false, error: "Too many likes, slow down!" },
-});
-app.patch("/changevalue", likeLimiter);
-
-
-app.use(limiter);
 
 const strictLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
@@ -53,30 +44,31 @@ const strictLimiter = rateLimit({
   message: { success: false, error: "Too many attempts, slow down!" },
 });
 
-app.post("/addfriend", strictLimiter);
-app.delete("/friends", strictLimiter);
+const likeLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 30,
+  message: { success: false, error: "Too many likes, slow down!" },
+});
 
 // Middleware to catch JSON parsing errors
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError) {
-    return res.status(400).json({ success: false, error: "Invalid JSON format" });
+    return res
+      .status(400)
+      .json({ success: false, error: "Invalid JSON format" });
   }
   next();
 });
 
-// Serve the index page
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
-// GET /friends: Retrieve all friends
-app.get("/friends", async (req, res) => {
+router.get("/friends", async (req, res) => {
   try {
     const peopleRef = db.collection("people").doc("associates");
     const doc = await peopleRef.get();
 
     if (!doc.exists || Object.keys(doc.data()).length === 0) {
-      return res.status(404).json({ success: false, error: "No friends found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "No friends found" });
     }
 
     res.status(200).json({
@@ -90,17 +82,20 @@ app.get("/friends", async (req, res) => {
   }
 });
 
-// POST /addfriend: Add a new friend
-app.post("/addfriend", async (req, res) => {
+router.post("/addfriend", strictLimiter, async (req, res) => {
   try {
     if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({ success: false, error: "Invalid request: No data received" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid request: No data received" });
     }
 
     const { name, value, likeCount = 0 } = req.body;
 
     if (!name || value === undefined) {
-      return res.status(400).json({ success: false, error: "Both name and value are required" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Both name and value are required" });
     }
 
     const peopleRef = db.collection("people").doc("associates");
@@ -112,11 +107,13 @@ app.post("/addfriend", async (req, res) => {
 
     const data = doc.data();
     if (data && data.hasOwnProperty(name)) {
-      return res.status(400).json({ success: false, error: `The name "${name}" already exists` });
+      return res
+        .status(400)
+        .json({ success: false, error: `The name "${name}" already exists` });
     }
 
-    await peopleRef.update({ 
-      [name]: { value, likeCount } 
+    await peopleRef.update({
+      [name]: { value, likeCount },
     });
 
     const updatedDoc = await peopleRef.get();
@@ -131,15 +128,15 @@ app.post("/addfriend", async (req, res) => {
   }
 });
 
-// PATCH /changevalue: Update a friend's value or likeCount
-app.patch("/changevalue", async (req, res) => {
+router.patch("/changevalue", likeLimiter, async (req, res) => {
   try {
     const { name, newValue, newLikeCount } = req.body;
 
     if (!name || (newValue === undefined && newLikeCount === undefined)) {
       return res.status(400).json({
         success: false,
-        error: "Name and at least one field ('newValue' or 'newLikeCount') are required",
+        error:
+          "Name and at least one field ('newValue' or 'newLikeCount') are required",
       });
     }
 
@@ -147,14 +144,17 @@ app.patch("/changevalue", async (req, res) => {
     const doc = await peopleRef.get();
 
     if (!doc.exists || !doc.data()[name]) {
-      return res.status(404).json({ success: false, error: `Person "${name}" not found` });
+      return res
+        .status(404)
+        .json({ success: false, error: `Person "${name}" not found` });
     }
 
     const currentData = doc.data()[name];
 
     const updatedData = {
       value: newValue !== undefined ? newValue : currentData.value,
-      likeCount: newLikeCount !== undefined ? newLikeCount : currentData.likeCount,
+      likeCount:
+        newLikeCount !== undefined ? newLikeCount : currentData.likeCount,
     };
 
     await peopleRef.update({ [`${name}`]: updatedData });
@@ -170,20 +170,23 @@ app.patch("/changevalue", async (req, res) => {
   }
 });
 
-// DELETE /friends: Delete a friend
-app.delete("/friends", async (req, res) => {
+router.delete("/friends", strictLimiter, async (req, res) => {
   try {
     const { name } = req.body;
 
     if (!name) {
-      return res.status(400).json({ success: false, error: "Name is required" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Name is required" });
     }
 
     const peopleRef = db.collection("people").doc("associates");
     const doc = await peopleRef.get();
 
     if (!doc.exists || !doc.data()[name]) {
-      return res.status(404).json({ success: false, error: `Person "${name}" not found` });
+      return res
+        .status(404)
+        .json({ success: false, error: `Person "${name}" not found` });
     }
 
     await peopleRef.update({ [`${name}`]: FieldValue.delete() });
@@ -198,5 +201,8 @@ app.delete("/friends", async (req, res) => {
   }
 });
 
-// Start server
+app.use("/app", express.static(path.join(__dirname, "public")));
+
+app.use("/app", router);
+
 app.listen(port, () => console.log(`Server is running on port: ${port}`));

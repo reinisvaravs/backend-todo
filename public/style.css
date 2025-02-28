@@ -1,0 +1,105 @@
+html,
+body {
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  background-color: #202525;
+}
+
+h3 {
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: tan;
+  width: 90%;
+  text-align: center;
+  font-family: monospace;
+  letter-spacing: 1px;
+}
+
+h4 {
+  position: fixed;
+  top: 41%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: tan;
+  width: 90%;
+  text-align: center;
+  font-family: monospace;
+  letter-spacing: 1px;
+}
+
+h1 {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  text-align: center;
+  font-family: monospace;
+}
+
+.underline1 {
+  color: tan;
+  a {
+    text-decoration: none;
+    color: tan;
+    position: relative;
+    display: inline-block;
+    margin: 0;
+  }
+}
+
+.underline1 a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0px;
+  width: 0;
+  height: 2px;
+  background: tan;
+  transition: width 0.5s ease;
+}
+
+.underline1 a:hover::after {
+  width: 100%;
+}
+
+.underline2 {
+  color: tan;
+  a {
+    text-decoration: none;
+    color: tan;
+    position: relative;
+    display: inline-block;
+    margin: 0;
+  }
+}
+
+.underline2 a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 1px;
+  width: 0;
+  height: 2px;
+  background: tan;
+  transition: width 0.5s ease;
+}
+
+.underline2 a:hover::after {
+  width: 100%;
+}
+
+.img1 {
+  width: 10px;
+  height: 10px;
+  transform: translate(-5px, -2px);
+}
+
+.img2 {
+  width: 15px;
+  height: 15px;
+  transform: translate(-8px, -3px);
+}

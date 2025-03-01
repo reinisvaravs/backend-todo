@@ -19,7 +19,6 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://friends-react.onrender.com",
       "https://reinisvaravs.com",
       "https://reinisvaravs-com.onrender.com",
     ],

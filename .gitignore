@@ -4,3 +4,4 @@ next.txt
 package-lock.json
 test.rest
 .env
+.DS_Store

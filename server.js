@@ -59,6 +59,11 @@ app.use((err, req, res, next) => {
   next();
 });
 
+// Ping Pong to wake up the backend
+app.get("/api/ping", (req, res) => {
+  res.status(200).json({ message: "pong" });
+});
+
 app.get("/friends", async (req, res) => {
   try {
     const peopleRef = db.collection("people").doc("associates");
